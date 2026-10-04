@@ -1,5 +1,5 @@
 #!/bin/bash
-# PANEL IPTV GUSTY - VERSION FINAL 2026 - 51 CANALES + POSICION + FLECHAS
+# PANEL IPTV GUSTY - VERSION FINAL 2026
 set -e
 echo ">>> Instalando Panel IPTV Gusty Final..."
 
