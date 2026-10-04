@@ -1,29 +1,22 @@
 #!/bin/bash
-# PANEL IPTV GUSTY - VERSION 2.0 SEGURA - PIDE USUARIO Y CLAVE
+# PANEL IPTV GUSTY - VERSION 2.0
 set -e
 
 echo "========================================"
-echo " PANEL IPTV GUSTY v2.0 - INSTALADOR SEGURO"
+echo " PANEL IPTV GUSTY v2.0"
 echo "========================================"
-echo ""
 
-read -p "Usuario admin [gustyadmin]: " INPUT_USER
-ADMIN_USER=${INPUT_USER:-gustyadmin}
+read -p "Usuario admin [admin]: " INPUT_USER
+ADMIN_USER=${INPUT_USER:-admin}
 
-read -s -p "Clave admin [dejar vacio para generar automatica]: " INPUT_PASS
-echo ""
-if [ -z "$INPUT_PASS" ]; then
-  ADMIN_PASS=$(openssl rand -base64 10 | tr -dc 'a-zA-Z0-9' | head -c 12)
-  echo ">> Clave auto-generada: $ADMIN_PASS"
-else
-  ADMIN_PASS=$INPUT_PASS
-fi
+read -p "Clave admin [1234]: " INPUT_PASS
+ADMIN_PASS=${INPUT_PASS:-1234}
 
 echo ""
-echo ">>> Instalando con usuario: $ADMIN_USER"
+echo ">>> Instalando con usuario: $ADMIN_USER / $ADMIN_PASS"
 
 apt update -y
-apt install -y python3 python3-pip sqlite3 curl openssl
+apt install -y python3 python3-pip sqlite3 curl
 pip3 install flask --break-system-packages 2>/dev/null || pip3 install flask
 
 mkdir -p /root/panel
@@ -31,7 +24,7 @@ cd /root/panel
 
 cat > app.py << 'PY'
 from flask import Flask, request, redirect, Response, jsonify
-import sqlite3, datetime
+import sqlite3
 app = Flask(__name__)
 DB="/root/panel/panel.db"
 def init():
@@ -51,13 +44,13 @@ def valid_user(u,p):
 def login():
     if request.method=="POST" and request.form.get("user")==ADMIN_USER and request.form.get("pass")==ADMIN_PASS:
         r=redirect("/admin"); r.set_cookie("auth","ok"); return r
-    return '<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="background:#0e0e0e;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><form method="post" style="background:#222;padding:20px;border-radius:12px;width:300px"><h3>Panel Login</h3><input name="user" placeholder="Usuario" style="width:100%;padding:10px;margin:5px 0"><input name="pass" type="password" placeholder="Pass" style="width:100%;padding:10px;margin:5px 0"><button style="width:100%;padding:12px;background:#2a7ae2;color:#fff;border:0;border-radius:8px">Entrar</button></form></body></html>'
+    return '<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="background:#111;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><form method="post" style="background:#222;padding:20px;border-radius:12px;width:300px"><h3>Login</h3><input name="user" placeholder="Usuario" style="width:100%;padding:10px;margin:5px 0"><input name="pass" type="password" placeholder="Clave" style="width:100%;padding:10px"><button style="width:100%;padding:12px;background:#2a7ae2;color:#fff;border:0;border-radius:8px;margin-top:10px">Entrar</button></form></body></html>'
 @app.route("/admin")
 @app.route("/admin/")
 def admin():
     if request.cookies.get("auth")!="ok": return redirect("/login")
     con=sqlite3.connect(DB); canales=con.execute("SELECT id,nombre,url,orden FROM canales ORDER BY orden ASC").fetchall(); total=len(canales)+1
-    page=f'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="background:#111;color:#fff;font-family:sans-serif;padding:10px"><h2>Panel - {total-1} canales</h2><a href="/admin/users" style="color:#4fc3f7">USUARIOS</a><hr><h3>Agregar Canal</h3><form method="post" action="/add" style="background:#222;padding:15px;border-radius:12px;display:flex;gap:8px;flex-wrap:wrap"><input name="nombre" placeholder="Nombre" required style="padding:10px;flex:1"><input name="url" placeholder="m3u8" required style="padding:10px;flex:2"><input name="posicion" type="number" min="1" max="{total}" placeholder="Pos #{total}" style="width:80px"><button style="padding:10px 20px;background:#2a7ae2;color:#fff;border:0;border-radius:8px">Agregar</button></form><hr><form method="post" action="/saveorder">'
+    page=f'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="background:#111;color:#fff;font-family:sans-serif;padding:10px"><h2>Panel - {total-1} canales</h2><a href="/admin/users" style="color:#4fc3f7">USUARIOS</a><hr><form method="post" action="/add" style="background:#222;padding:15px;border-radius:12px;display:flex;gap:8px;flex-wrap:wrap"><input name="nombre" placeholder="Nombre" required style="padding:10px;flex:1"><input name="url" placeholder="https://...m3u8" required style="padding:10px;flex:2"><input name="posicion" type="number" min="1" max="{total}" placeholder="Pos #{total}" style="width:80px"><button style="padding:10px 20px;background:#2a7ae2;color:#fff;border:0;border-radius:8px">Agregar</button></form><hr><form method="post" action="/saveorder">'
     for i,c in enumerate(canales):
         page+=f'<div style="background:#222;padding:12px;margin:8px 0;border-radius:10px;display:flex;gap:8px;align-items:center"><input type="number" name="pos_{c[0]}" value="{i+1}" style="width:50px"><div style="flex:1"><b>{i+1}. {c[1]}</b></div><a href="/up/{c[0]}" style="background:#333;padding:8px 12px;border-radius:8px;color:#fff;text-decoration:none">▲</a><a href="/down/{c[0]}" style="background:#333;padding:8px 12px;border-radius:8px;color:#fff;text-decoration:none">▼</a><a href="/del/{c[0]}" style="background:#5a1a1a;padding:8px 12px;border-radius:8px;color:#ff7777;text-decoration:none">X</a></div>'
     page+='<button style="width:100%;padding:14px;background:#2a7ae2;color:#fff;border:0;border-radius:10px;margin-top:10px">GUARDAR ORDEN</button></form></body></html>'; return page
@@ -91,9 +84,7 @@ def add():
         p=int(ps); nv=p-1
         for cid,ordn in cs:
             if ordn>=nv: con.execute("UPDATE canales SET orden=? WHERE id=?",(ordn+1,cid))
-    con.execute("INSERT INTO canales (nombre,url,orden) VALUES (?,?,?)",(n,u,nv)); con.commit(); cur=con.execute("SELECT id FROM canales ORDER BY orden ASC").fetchall()
-    for idx,(cid,) in enumerate(cur): con.execute("UPDATE canales SET orden=? WHERE id=?",(idx,cid))
-    con.commit(); return redirect("/admin")
+    con.execute("INSERT INTO canales (nombre,url,orden) VALUES (?,?,?)",(n,u,nv)); con.commit(); return redirect("/admin")
 @app.route("/del/<int:id>")
 def dele(id):
     con=sqlite3.connect(DB); con.execute("DELETE FROM canales WHERE id=?",(id,)); con.commit(); return redirect("/admin")
@@ -102,14 +93,12 @@ def dele(id):
 def users_page():
     if request.cookies.get("auth")!="ok": return redirect("/login")
     con=sqlite3.connect(DB); us=con.execute("SELECT id,user,pass,expira FROM usuarios ORDER BY id DESC").fetchall()
-    h='<html><body style="background:#111;color:#fff;padding:15px;font-family:sans-serif"><a href="/admin" style="color:#4fc3f7">← Canales</a><h2>Usuarios</h2><form method="post" action="/adduser" style="background:#222;padding:15px;border-radius:12px"><input name="user" placeholder="Usuario" required><input name="pass" placeholder="Pass" required><input name="expira" type="date" required><button>CREAR</button></form><hr>'
+    h='<html><body style="background:#111;color:#fff;padding:15px;font-family:sans-serif"><a href="/admin" style="color:#4fc3f7">← Canales</a><h2>Usuarios</h2><form method="post" action="/adduser"><input name="user" placeholder="Usuario" required><input name="pass" placeholder="Pass" required><input name="expira" type="date" required><button>CREAR</button></form><hr>'
     for x in us: h+=f'{x[1]} | {x[2]} | {x[3]} <a href="/deluser/{x[0]}" style="color:red">[X]</a><br>'
     return h+'</body></html>'
 @app.route("/adduser", methods=["POST"])
 def adduser():
-    try: con=sqlite3.connect(DB); con.execute("INSERT INTO usuarios (user,pass,expira,activo) VALUES (?,?,?,1)",(request.form["user"],request.form["pass"],request.form["expira"])); con.commit()
-    except Exception as e: return f'Error {e} <a href="/admin/users">Volver</a>'
-    return redirect("/admin/users")
+    con=sqlite3.connect(DB); con.execute("INSERT INTO usuarios (user,pass,expira,activo) VALUES (?,?,?,1)",(request.form["user"],request.form["pass"],request.form["expira"])); con.commit(); return redirect("/admin/users")
 @app.route("/deluser/<int:id>")
 def deluser(id):
     con=sqlite3.connect(DB); con.execute("DELETE FROM usuarios WHERE id=?",(id,)); con.commit(); return redirect("/admin/users")
@@ -141,12 +130,10 @@ def xmltv(): return Response("<tv></tv>", mimetype='text/xml')
 def index(): return redirect("/admin")
 app.run(host='0.0.0.0',port=80)
 PY
-
 sed -i "s/__ADMIN_USER__/$ADMIN_USER/g; s/__ADMIN_PASS__/$ADMIN_PASS/g" /root/panel/app.py
-
 cat > /etc/systemd/system/panel.service << SERVICE
 [Unit]
-Description=Panel IPTV Gusty v2.0
+Description=Panel IPTV Gusty
 After=network.target
 [Service]
 User=root
@@ -156,19 +143,14 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 SERVICE
-
 systemctl daemon-reload
 systemctl enable panel
 systemctl restart panel
-sleep 2
-
 IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
 echo ""
 echo "========================================"
-echo " PANEL INSTALADO CORRECTAMENTE"
+echo " PANEL INSTALADO"
 echo " URL: http://$IP/admin"
 echo " User: $ADMIN_USER"
 echo " Pass: $ADMIN_PASS"
 echo "========================================"
-echo " GUARDA ESTOS DATOS, NO ESTAN EN GITHUB"
-echo ""
